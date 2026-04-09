@@ -6,6 +6,7 @@ This project includes a minimal Coder installation that runs inside the VM and i
 
 - Imports `ansible/playbooks/coder.yml` from `ansible/site.yml`
 - Installs the latest stable Coder release inside the VM
+- Installs Docker Engine inside the VM for the default Docker Container template
 - Runs Coder as a `systemd` service
 - Configures `CODER_ACCESS_URL=http://localhost:3000`
 - Forwards guest port `3000` to host `127.0.0.1:3000`
@@ -52,6 +53,12 @@ To inspect the Coder environment file inside the VM:
 
 ```powershell
 vagrant ssh -c "sudo cat /etc/coder.d/coder.env"
+```
+
+To verify that the `coder` service account can reach Docker inside the VM:
+
+```powershell
+vagrant ssh -c "sudo -u coder docker info"
 ```
 
 ## Relevant Files

@@ -6,6 +6,27 @@ This project creates a CentOS VM with Vagrant using the VirtualBox provider and 
 
 - Vagrant
 - VirtualBox
+- Windows host with `winget` available
+
+To install the host dependencies from the command line on Windows:
+
+```powershell
+winget install Hashicorp.Vagrant
+winget install Oracle.VirtualBox
+```
+
+To verify the tools are available after installation:
+
+```powershell
+vagrant --version
+VBoxManage --version
+```
+
+If VirtualBox fails to start VMs on Windows 11, disable Hyper-V in an elevated PowerShell session and reboot:
+
+```powershell
+bcdedit /set hypervisorlaunchtype off
+```
 
 ## Usage
 
