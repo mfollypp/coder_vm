@@ -4,6 +4,7 @@
   become: true
   vars_files:
     - ../group_vars/all.yml
+    - ../group_vars/hello_world_vars.yml
 
   tasks:
     - name: Create hello world file on the VM

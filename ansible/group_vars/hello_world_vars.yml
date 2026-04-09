@@ -1,0 +1,3 @@
+---
+hello_world_file_path: /tmp/hello-world.txt
+hello_world_message: Hello World from Ansible

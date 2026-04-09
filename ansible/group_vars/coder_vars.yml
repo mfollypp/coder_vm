@@ -1,0 +1,10 @@
+---
+coder_port: 3000
+coder_http_address: "0.0.0.0:{{ coder_port }}"
+coder_access_url: "http://localhost:{{ coder_port }}"
+coder_service_user: coder
+coder_service_group: coder
+coder_data_dir: /var/lib/coder
+coder_xdg_config_home: "{{ coder_data_dir }}/.config"
+coder_xdg_cache_home: "{{ coder_data_dir }}/.cache"
+coder_env_file: /etc/coder.d/coder.env

@@ -1,5 +1,0 @@
----
-- name: Placeholder for future VM configuration
-  hosts: all
-  become: true
-  tasks: []

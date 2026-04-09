@@ -1,0 +1,155 @@
+---
+- name: Install and configure a minimal Coder deployment
+  hosts: all
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/coder_vars.yml
+
+  handlers:
+    - name: Restart coder
+      ansible.builtin.systemd:
+        name: coder
+        state: restarted
+        enabled: true
+        daemon_reload: true
+
+  tasks:
+    - name: Install packages required by Coder provisioning
+      ansible.builtin.dnf:
+        name:
+          - ca-certificates
+          - curl
+          - firewalld
+        state: present
+
+    - name: Ensure firewalld is running
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Create Coder group
+      ansible.builtin.group:
+        name: "{{ coder_service_group }}"
+        system: true
+
+    - name: Create Coder service user
+      ansible.builtin.user:
+        name: "{{ coder_service_user }}"
+        group: "{{ coder_service_group }}"
+        home: "{{ coder_data_dir }}"
+        create_home: true
+        shell: /sbin/nologin
+        system: true
+
+    - name: Create directories used by the Coder service user
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ coder_service_user }}"
+        group: "{{ coder_service_group }}"
+        mode: "0755"
+      loop:
+        - "{{ coder_data_dir }}"
+        - "{{ coder_xdg_config_home }}"
+        - "{{ coder_xdg_cache_home }}"
+
+    - name: Create the Coder configuration directory
+      ansible.builtin.file:
+        path: /etc/coder.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download Coder install script
+      ansible.builtin.get_url:
+        url: https://coder.com/install.sh
+        dest: /tmp/coder-install.sh
+        mode: "0755"
+
+    - name: Check for Coder package binary path
+      ansible.builtin.stat:
+        path: /usr/bin/coder
+      register: coder_usr_bin
+
+    - name: Check for Coder standalone binary path
+      ansible.builtin.stat:
+        path: /usr/local/bin/coder
+      register: coder_usrlocal_bin
+
+    - name: Install the latest stable Coder release
+      ansible.builtin.command:
+        cmd: /bin/sh /tmp/coder-install.sh --stable
+      when:
+        - not coder_usr_bin.stat.exists
+        - not coder_usrlocal_bin.stat.exists
+      changed_when: true
+
+    - name: Configure Coder server environment
+      ansible.builtin.copy:
+        dest: "{{ coder_env_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          CODER_HTTP_ADDRESS={{ coder_http_address }}
+          CODER_ACCESS_URL={{ coder_access_url }}
+      notify: Restart coder
+
+    - name: Install systemd unit for Coder
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/coder.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Coder
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ coder_service_user }}
+          Group={{ coder_service_group }}
+          WorkingDirectory={{ coder_data_dir }}
+          Environment=HOME={{ coder_data_dir }}
+          Environment=XDG_CONFIG_HOME={{ coder_xdg_config_home }}
+          Environment=XDG_CACHE_HOME={{ coder_xdg_cache_home }}
+          Environment=PATH=/usr/local/bin:/usr/bin:/bin
+          EnvironmentFile=-{{ coder_env_file }}
+          ExecStart=/usr/bin/env coder server
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart coder
+
+    - name: Check whether firewalld already allows the Coder port
+      ansible.builtin.command:
+        cmd: firewall-cmd --query-port={{ coder_port }}/tcp
+      register: coder_firewall_port
+      changed_when: false
+      failed_when: coder_firewall_port.rc not in [0, 1]
+
+    - name: Allow the Coder port permanently in firewalld
+      ansible.builtin.command:
+        cmd: firewall-cmd --permanent --add-port={{ coder_port }}/tcp
+      when: coder_firewall_port.rc == 1
+      changed_when: true
+
+    - name: Allow the Coder port in the running firewalld configuration
+      ansible.builtin.command:
+        cmd: firewall-cmd --add-port={{ coder_port }}/tcp
+      when: coder_firewall_port.rc == 1
+      changed_when: true
+
+    - name: Ensure the Coder service is enabled and started
+      ansible.builtin.systemd:
+        name: coder
+        state: started
+        enabled: true
+        daemon_reload: true

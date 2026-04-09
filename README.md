@@ -44,8 +44,11 @@ You do not need to create an inventory file if you use `vagrant up` or `vagrant 
 - `ansible/site.yml`: main entry point that imports other playbooks.
 - `ansible/inventory.ini`: localhost inventory for manual `ansible-playbook` runs inside the guest.
 - `ansible/playbooks/hello_world.yml`: starter playbook that creates `/tmp/hello-world.txt`.
-- `ansible/playbooks/custom.yml`: placeholder for future configuration.
 - `ansible/group_vars/all.yml`: shared variables.
+
+## Optional Setup
+
+Coder-specific setup and access instructions live in `CODER.md`.
 
 ## Extending the Configuration
 
@@ -54,6 +57,5 @@ Add new playbooks under `ansible/playbooks/` and import them from `ansible/site.
 ```yaml
 ---
 - import_playbook: playbooks/hello_world.yml
-- import_playbook: playbooks/custom.yml
-- import_playbook: playbooks/docker.yml
+- import_playbook: playbooks/coder.yml
 ```
