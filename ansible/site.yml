@@ -1,3 +1,4 @@
 ---
 - import_playbook: playbooks/hello_world.yml
-- import_playbook: playbooks/coder.yml
+# - import_playbook: playbooks/coder.yml
+- import_playbook: playbooks/coder_compose.yml

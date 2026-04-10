@@ -1,0 +1,13 @@
+---
+coder_port: 3000
+coder_access_url: "http://localhost:{{ coder_port }}"
+coder_container_port: 7080
+coder_compose_source_file: /vagrant/docker/coder_compose.yml
+coder_compose_project_dir: /opt/coder
+coder_compose_file: "{{ coder_compose_project_dir }}/docker-compose.yml"
+coder_compose_env_file: "{{ coder_compose_project_dir }}/.env"
+coder_compose_systemd_service_name: coder-compose.service
+coder_compose_systemd_unit_file: "/etc/systemd/system/{{ coder_compose_systemd_service_name }}"
+coder_postgres_user: coder
+coder_postgres_password: coder
+coder_postgres_db: coder

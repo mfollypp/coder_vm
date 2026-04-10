@@ -1,0 +1,162 @@
+---
+- name: Install and configure Coder with Docker Compose
+  hosts: all
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/coder_compose_vars.yml
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart coder compose service
+      ansible.builtin.systemd:
+        name: "{{ coder_compose_systemd_service_name }}"
+        state: restarted
+
+  tasks:
+    - name: Ensure the checked-in Coder compose file is available
+      ansible.builtin.stat:
+        path: "{{ coder_compose_source_file }}"
+      register: coder_compose_source
+
+    - name: Fail when the checked-in compose file is unavailable
+      ansible.builtin.assert:
+        that:
+          - coder_compose_source.stat.exists
+        fail_msg: "Expected the Coder compose file at {{ coder_compose_source_file }}."
+
+    - name: Install packages required by the Docker Compose deployment
+      ansible.builtin.dnf:
+        name:
+          - ca-certificates
+          - curl
+          - dnf-plugins-core
+          - firewalld
+        state: present
+
+    - name: Configure the Docker CE package repository
+      ansible.builtin.command:
+        cmd: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+      changed_when: true
+
+    - name: Install Docker Engine packages
+      ansible.builtin.dnf:
+        name:
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-ce
+          - docker-ce-cli
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure firewalld is running
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Ensure Docker is running
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Read the docker group information
+      ansible.builtin.getent:
+        database: group
+        key: docker
+
+    - name: Create the Docker Compose project directory
+      ansible.builtin.file:
+        path: "{{ coder_compose_project_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Stage the checked-in Coder compose file
+      ansible.builtin.copy:
+        src: "{{ coder_compose_source_file }}"
+        dest: "{{ coder_compose_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+        force: true
+      notify: Restart coder compose service
+
+    - name: Write the Docker Compose environment file
+      ansible.builtin.copy:
+        dest: "{{ coder_compose_env_file }}"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          CODER_ACCESS_URL={{ coder_access_url }}
+          CODER_HOST_PORT={{ coder_port }}
+          CODER_CONTAINER_PORT={{ coder_container_port }}
+          CODER_DOCKER_GID={{ ansible_facts.getent_group.docker[1] }}
+          POSTGRES_USER={{ coder_postgres_user }}
+          POSTGRES_PASSWORD={{ coder_postgres_password }}
+          POSTGRES_DB={{ coder_postgres_db }}
+      notify: Restart coder compose service
+
+    - name: Install the systemd unit for the Coder Compose stack
+      ansible.builtin.copy:
+        dest: "{{ coder_compose_systemd_unit_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Coder Docker Compose Stack
+          Requires=docker.service
+          After=docker.service network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          WorkingDirectory={{ coder_compose_project_dir }}
+          ExecStart=/usr/bin/docker compose up -d
+          ExecStop=/usr/bin/docker compose down
+          ExecReload=/usr/bin/docker compose up -d
+          TimeoutStartSec=0
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Reload systemd
+        - Restart coder compose service
+
+    - name: Check whether firewalld already allows the Coder port
+      ansible.builtin.command:
+        cmd: firewall-cmd --query-port={{ coder_port }}/tcp
+      register: coder_firewall_port
+      changed_when: false
+      failed_when: coder_firewall_port.rc not in [0, 1]
+
+    - name: Allow the Coder port permanently in firewalld
+      ansible.builtin.command:
+        cmd: firewall-cmd --permanent --add-port={{ coder_port }}/tcp
+      when: coder_firewall_port.rc == 1
+      changed_when: true
+
+    - name: Allow the Coder port in the running firewalld configuration
+      ansible.builtin.command:
+        cmd: firewall-cmd --add-port={{ coder_port }}/tcp
+      when: coder_firewall_port.rc == 1
+      changed_when: true
+
+    - name: Flush handlers before enabling the service
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start the Coder Compose service
+      ansible.builtin.systemd:
+        name: "{{ coder_compose_systemd_service_name }}"
+        enabled: true
+        state: started

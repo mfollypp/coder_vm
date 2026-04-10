@@ -7,6 +7,18 @@
     - ../group_vars/hello_world_vars.yml
 
   tasks:
+    - name: Read the current system timezone
+      ansible.builtin.command:
+        cmd: timedatectl show --property=Timezone --value
+      register: current_timezone
+      changed_when: false
+
+    - name: Set the system timezone to America/Sao_Paulo
+      ansible.builtin.command:
+        cmd: timedatectl set-timezone America/Sao_Paulo
+      when: current_timezone.stdout | trim != 'America/Sao_Paulo'
+      changed_when: true
+
     - name: Create hello world file on the VM
       ansible.builtin.copy:
         dest: "{{ hello_world_file_path }}"

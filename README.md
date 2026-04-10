@@ -78,5 +78,5 @@ Add new playbooks under `ansible/playbooks/` and import them from `ansible/site.
 ```yaml
 ---
 - import_playbook: playbooks/hello_world.yml
-- import_playbook: playbooks/coder.yml
+- import_playbook: playbooks/coder_docker_compose.yml
 ```
