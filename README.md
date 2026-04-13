@@ -45,6 +45,7 @@ Vagrant will:
 1. Start a `centos/stream9` VM.
 2. Install `ansible-core` inside the guest.
 3. Run the main Ansible playbook at `ansible/site.yml`.
+4. Expose Coder on [http://localhost:3000](http://localhost:3000/)
 
 ## Modify Ansible
 
