@@ -15,6 +15,12 @@ winget install Hashicorp.Vagrant
 winget install Oracle.VirtualBox
 ```
 
+Add the VBoxManage to PATH:
+
+```powershell
+C:\Program Files\Oracle\VirtualBox\
+```
+
 To verify the tools are available after installation:
 
 ```powershell
@@ -39,6 +45,8 @@ Vagrant will:
 1. Start a `centos/stream9` VM.
 2. Install `ansible-core` inside the guest.
 3. Run the main Ansible playbook at `ansible/site.yml`.
+
+## Modify Ansible
 
 To run provisioning again after changes:
 
